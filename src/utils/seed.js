@@ -1,4 +1,6 @@
 require('dotenv').config();
+const dns = require('dns');
+try { dns.setServers(['8.8.8.8', '1.1.1.1']); } catch(e) {}
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const QRCode = require('qrcode');
@@ -64,7 +66,7 @@ const seedData = async () => {
       { tableNumber: 'Table 05', identifier: '05', seatingCapacity: 4 }
     ];
 
-    const frontendBase = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendBase = process.env.FRONTEND_URL || 'https://the-prime-cafe-frontend.vercel.app';
     for (const t of tablesList) {
       const qrUrl = `${frontendBase}/cafe?table=${encodeURIComponent(t.identifier)}`;
       const qrCodeDataUrl = await QRCode.toDataURL(qrUrl, {

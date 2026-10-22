@@ -10,6 +10,7 @@ const cafeRoutes = require('./routes/cafeRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const uploadRoutes = require('./routes/uploadRoutes');
 
 const app = express();
 
@@ -18,7 +19,8 @@ app.use(helmet());
 
 // CORS configuration
 const allowedOrigins = [
-  process.env.FRONTEND_URL || 'http://localhost:5173',
+  process.env.FRONTEND_URL || 'https://the-prime-cafe-frontend.vercel.app',
+  'https://the-prime-cafe-frontend.vercel.app',
   'http://localhost:5173',
   'http://127.0.0.1:5173'
 ];
@@ -61,6 +63,7 @@ app.use('/api', cafeRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Catch 404
 app.use((req, res, next) => {

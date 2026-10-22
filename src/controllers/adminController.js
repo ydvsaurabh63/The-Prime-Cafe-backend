@@ -668,7 +668,7 @@ exports.createTable = async (req, res, next) => {
     }
 
     // Generate QR Code URL with table parameter
-    const frontendBase = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendBase = process.env.FRONTEND_URL || 'https://the-prime-cafe-frontend.vercel.app';
     const qrUrl = `${frontendBase}/cafe?table=${encodeURIComponent(cleanId)}`;
     const qrCodeDataUrl = await QRCode.toDataURL(qrUrl, {
       width: 400,
