@@ -28,15 +28,19 @@ const ensureDefaultClients = async () => {
       status: 'Active',
       plan: 'Enterprise',
       tablesCount: 15,
+      plainPassword: 'Admin@123',
       totalSales: realSales || 48620,
       totalOrders: realOrdersCount || 312
     });
   } else {
-    // Keep The Prime Cafe dynamically synced with real order calculations
-    await Client.updateOne(
-      { cafeName: 'The Prime Cafe' },
-      { $set: { totalSales: realSales || 48620, totalOrders: realOrdersCount || 312 } }
-    );
+    // Keep The Prime Cafe dynamically synced with real order calculations & plainPassword
+    const prime = await Client.findOne({ cafeName: 'The Prime Cafe' });
+    if (prime) {
+      prime.totalSales = realSales || 48620;
+      prime.totalOrders = realOrdersCount || 312;
+      if (!prime.plainPassword) prime.plainPassword = 'Admin@123';
+      await prime.save();
+    }
   }
 };
 
@@ -269,10 +273,26 @@ exports.getAllClients = async (req, res, next) => {
   try {
     await ensureDefaultClients();
     const clients = await Client.find().sort({ createdAt: -1 });
-    const formatted = clients.map((c) => ({
-      ...c.toObject(),
-      clientUrl: '/client/orders'
-    }));
+
+    const emails = clients.map((c) => c.email?.toLowerCase().trim()).filter(Boolean);
+    const users = await User.find({ email: { $in: emails } });
+    const userMap = {};
+    users.forEach((u) => {
+      userMap[u.email.toLowerCase()] = u;
+    });
+
+    const formatted = clients.map((c) => {
+      const emailLower = c.email?.toLowerCase().trim();
+      const matchedUser = userMap[emailLower];
+      const pwd = c.plainPassword || matchedUser?.plainPassword || 'Admin@123';
+      return {
+        ...c.toObject(),
+        password: pwd,
+        plainPassword: pwd,
+        clientUrl: '/client/orders'
+      };
+    });
+
     res.status(200).json({
       success: true,
       data: formatted
@@ -402,10 +422,16 @@ exports.updateClient = async (req, res, next) => {
       await clientUser.save();
     }
 
+    const clientData = {
+      ...updated.toObject(),
+      password: updated.plainPassword || (password ? password.trim() : 'Admin@123'),
+      plainPassword: updated.plainPassword || (password ? password.trim() : 'Admin@123')
+    };
+
     res.status(200).json({
       success: true,
       message: 'Client updated successfully',
-      data: updated
+      data: clientData
     });
   } catch (err) {
     next(err);
