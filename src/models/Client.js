@@ -69,6 +69,10 @@ const clientSchema = new mongoose.Schema(
     logo: {
       type: String,
       default: ''
+    },
+    plainPassword: {
+      type: String,
+      default: ''
     }
   },
   { timestamps: true }

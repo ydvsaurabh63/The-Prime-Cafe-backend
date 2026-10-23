@@ -284,23 +284,47 @@ exports.getAllClients = async (req, res, next) => {
 
 exports.createClient = async (req, res, next) => {
   try {
-    const { cafeName, ownerName, email, phone, city, address, plan, tablesCount, assignedAdminName } = req.body;
+    const { cafeName, ownerName, email, phone, city, address, plan, tablesCount, assignedAdminName, password } = req.body;
     if (!cafeName || !ownerName || !email || !phone) {
       return res.status(400).json({ success: false, message: 'Please provide cafeName, ownerName, email, and phone' });
     }
 
+    const cleanEmail = email.toLowerCase().trim();
+    const existing = await Client.findOne({ email: cleanEmail });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'A client with this email already exists' });
+    }
+
+    const passToUse = (password && password.trim()) || 'Admin@123';
     const client = await Client.create({
       cafeName,
       ownerName,
-      email,
-      phone,
+      email: cleanEmail,
+      phone: phone.trim(),
       city: city || 'New Delhi',
       address: address || '',
       plan: plan || 'Growth',
       tablesCount: Number(tablesCount) || 8,
       assignedAdminName: assignedAdminName || 'Superadmin HQ',
+      plainPassword: passToUse,
       status: 'Active'
     });
+
+    // Also ensure login user exists
+    let clientUser = await User.findOne({ email: cleanEmail });
+    if (!clientUser) {
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash(passToUse, salt);
+      await User.create({
+        name: ownerName || cafeName,
+        email: cleanEmail,
+        phone: phone.trim(),
+        passwordHash,
+        plainPassword: passToUse,
+        role: 'client',
+        isVerified: true
+      });
+    }
 
     res.status(201).json({
       success: true,
@@ -315,10 +339,69 @@ exports.createClient = async (req, res, next) => {
 exports.updateClient = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const updated = await Client.findByIdAndUpdate(id, req.body, { new: true, runValidators: true });
-    if (!updated) {
+    const { cafeName, ownerName, email, phone, city, address, plan, tablesCount, assignedAdminName, status, password } = req.body;
+
+    const existingClient = await Client.findById(id);
+    if (!existingClient) {
       return res.status(404).json({ success: false, message: 'Client not found' });
     }
+
+    const oldEmail = existingClient.email?.toLowerCase().trim();
+    const newEmail = email ? email.toLowerCase().trim() : oldEmail;
+
+    if (newEmail !== oldEmail) {
+      const emailTaken = await Client.findOne({ email: newEmail, _id: { $ne: id } });
+      if (emailTaken) {
+        return res.status(400).json({ success: false, message: 'A client with this email already exists' });
+      }
+    }
+
+    const updateFields = { ...req.body };
+    if (email) updateFields.email = newEmail;
+    if (password && password.trim()) {
+      updateFields.plainPassword = password.trim();
+    }
+
+    const updated = await Client.findByIdAndUpdate(id, updateFields, { new: true, runValidators: true });
+
+    // Sync or update User account for this client so they can login at /client/login
+    let clientUser = await User.findOne({
+      $or: [
+        { email: oldEmail },
+        { email: newEmail }
+      ]
+    });
+
+    if (password && password.trim()) {
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash(password.trim(), salt);
+
+      if (clientUser) {
+        clientUser.email = newEmail;
+        clientUser.passwordHash = passwordHash;
+        clientUser.plainPassword = password.trim();
+        clientUser.role = 'client';
+        if (ownerName || cafeName) clientUser.name = ownerName || cafeName;
+        if (phone) clientUser.phone = phone.trim();
+        await clientUser.save();
+      } else {
+        await User.create({
+          name: ownerName || cafeName || 'Cafe Client',
+          email: newEmail,
+          phone: phone ? phone.trim() : '+91 98765 00000',
+          passwordHash,
+          plainPassword: password.trim(),
+          role: 'client',
+          isVerified: true
+        });
+      }
+    } else if (newEmail !== oldEmail && clientUser) {
+      clientUser.email = newEmail;
+      if (ownerName) clientUser.name = ownerName;
+      if (phone) clientUser.phone = phone.trim();
+      await clientUser.save();
+    }
+
     res.status(200).json({
       success: true,
       message: 'Client updated successfully',
