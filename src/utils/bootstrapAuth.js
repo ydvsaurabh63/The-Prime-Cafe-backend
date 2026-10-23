@@ -78,7 +78,18 @@ const ensureEnvAccounts = async () => {
       email: clientEmail,
       password: clientPassword,
       name: 'The Prime Cafe Admin',
-      role: 'admin',
+      role: 'client',
+      area: 'Connaught Place',
+      city: 'New Delhi',
+      phone: '+91 98765 43210'
+    });
+
+    // Also ensure vikas@theprimecafe.com (the default client in database)
+    await bootstrapAccount({
+      email: 'vikas@theprimecafe.com',
+      password: 'Admin@123',
+      name: 'Vikas Malhotra',
+      role: 'client',
       area: 'Connaught Place',
       city: 'New Delhi',
       phone: '+91 98765 43210'
