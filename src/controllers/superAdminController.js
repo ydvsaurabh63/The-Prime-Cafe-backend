@@ -108,12 +108,15 @@ exports.getAllAdmins = async (req, res, next) => {
     await ensureDefaultAdmin();
     const admins = await User.find({ role: 'admin' }).select('-passwordHash').sort({ createdAt: -1 });
     const clientCount = await Client.countDocuments();
-    const formatted = admins.map((adm) => ({
+    const formatted = admins.map((adm, index) => ({
       _id: adm._id,
       name: adm.name,
       email: adm.email,
       phone: adm.phone,
-      region: adm.area || adm.city || 'Delhi NCR',
+      organization: adm.organization || `${adm.name} Cafe Operations`,
+      customId: adm.customId || `ADM-${101 + index}`,
+      region: adm.area || adm.city || 'Delhi NCR & North Zone',
+      password: adm.plainPassword || 'Admin@123',
       managedClientsCount: clientCount,
       status: 'Active',
       createdAt: adm.createdAt
@@ -130,7 +133,7 @@ exports.getAllAdmins = async (req, res, next) => {
 
 exports.createAdmin = async (req, res, next) => {
   try {
-    const { name, email, phone, password, area, city, region } = req.body;
+    const { name, email, phone, password, area, city, region, organization, customId } = req.body;
     if (!name || !email || !phone) {
       return res.status(400).json({ success: false, message: 'Please provide name, email, and phone' });
     }
@@ -140,16 +143,21 @@ exports.createAdmin = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'User with this email already exists' });
     }
 
+    const passToUse = (password && password.trim()) || 'Admin@123';
     const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password || 'Admin@123', salt);
+    const passwordHash = await bcrypt.hash(passToUse, salt);
+    const adminCount = await User.countDocuments({ role: 'admin' });
 
     const newAdmin = await User.create({
       name,
-      email: email.toLowerCase(),
-      phone,
+      email: email.toLowerCase().trim(),
+      phone: phone.trim(),
       passwordHash,
+      plainPassword: passToUse,
+      organization: organization || `${name} Cafe Operations`,
+      customId: customId || `ADM-${101 + adminCount}`,
       role: 'admin',
-      area: region || area || 'Delhi NCR',
+      area: region || area || 'Delhi NCR & North Zone',
       city: city || 'New Delhi',
       isVerified: true
     });
@@ -162,7 +170,10 @@ exports.createAdmin = async (req, res, next) => {
         name: newAdmin.name,
         email: newAdmin.email,
         phone: newAdmin.phone,
-        region: newAdmin.area || 'Delhi NCR',
+        organization: newAdmin.organization,
+        customId: newAdmin.customId,
+        region: newAdmin.area || 'Delhi NCR & North Zone',
+        password: newAdmin.plainPassword,
         managedClientsCount: await Client.countDocuments(),
         status: 'Active',
         createdAt: newAdmin.createdAt
@@ -176,7 +187,7 @@ exports.createAdmin = async (req, res, next) => {
 exports.updateAdmin = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, phone, area, city, region, email, password } = req.body;
+    const { name, phone, area, city, region, email, password, organization, customId } = req.body;
 
     const admin = await User.findById(id);
     if (!admin) {
@@ -188,6 +199,8 @@ exports.updateAdmin = async (req, res, next) => {
     if (phone) updateFields.phone = phone.trim();
     if (region || area) updateFields.area = (region || area).trim();
     if (city) updateFields.city = city.trim();
+    if (organization !== undefined) updateFields.organization = organization.trim();
+    if (customId) updateFields.customId = customId.trim();
 
     if (email && email.trim()) {
       const cleanEmail = email.toLowerCase().trim();
@@ -203,6 +216,7 @@ exports.updateAdmin = async (req, res, next) => {
     if (password && password.trim()) {
       const salt = await bcrypt.genSalt(10);
       updateFields.passwordHash = await bcrypt.hash(password.trim(), salt);
+      updateFields.plainPassword = password.trim();
     }
 
     const updated = await User.findByIdAndUpdate(
@@ -219,7 +233,10 @@ exports.updateAdmin = async (req, res, next) => {
         name: updated.name,
         email: updated.email,
         phone: updated.phone,
-        region: updated.area || 'Delhi NCR',
+        organization: updated.organization || `${updated.name} Cafe Operations`,
+        customId: updated.customId || 'ADM-101',
+        region: updated.area || 'Delhi NCR & North Zone',
+        password: updated.plainPassword || (password ? password.trim() : 'Admin@123'),
         status: 'Active',
         createdAt: updated.createdAt
       }

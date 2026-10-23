@@ -25,6 +25,20 @@ const userSchema = new mongoose.Schema(
       type: String,
       select: false // never returned by default in queries
     },
+    plainPassword: {
+      type: String,
+      default: ''
+    },
+    organization: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    customId: {
+      type: String,
+      trim: true,
+      default: ''
+    },
     role: {
       type: String,
       enum: ['customer', 'admin', 'superadmin', 'client'],
