@@ -41,8 +41,8 @@ const ensureDefaultClients = async () => {
 };
 
 const ensureDefaultAdmin = async () => {
-  const existing = await User.findOne({ email: 'amit.sharma@aajkalcafe.com' });
-  if (!existing) {
+  const adminCount = await User.countDocuments({ role: 'admin' });
+  if (adminCount === 0) {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash('Admin@123', salt);
     await User.create({
@@ -176,24 +176,40 @@ exports.createAdmin = async (req, res, next) => {
 exports.updateAdmin = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, phone, area, city, region, email } = req.body;
+    const { name, phone, area, city, region, email, password } = req.body;
+
+    const admin = await User.findById(id);
+    if (!admin) {
+      return res.status(404).json({ success: false, message: 'Admin not found' });
+    }
 
     const updateFields = {};
-    if (name) updateFields.name = name;
-    if (email) updateFields.email = email.toLowerCase();
-    if (phone) updateFields.phone = phone;
-    if (region || area) updateFields.area = region || area;
-    if (city) updateFields.city = city;
+    if (name) updateFields.name = name.trim();
+    if (phone) updateFields.phone = phone.trim();
+    if (region || area) updateFields.area = (region || area).trim();
+    if (city) updateFields.city = city.trim();
+
+    if (email && email.trim()) {
+      const cleanEmail = email.toLowerCase().trim();
+      if (cleanEmail !== admin.email) {
+        const existing = await User.findOne({ email: cleanEmail, _id: { $ne: id } });
+        if (existing) {
+          return res.status(400).json({ success: false, message: 'User with this email already exists' });
+        }
+        updateFields.email = cleanEmail;
+      }
+    }
+
+    if (password && password.trim()) {
+      const salt = await bcrypt.genSalt(10);
+      updateFields.passwordHash = await bcrypt.hash(password.trim(), salt);
+    }
 
     const updated = await User.findByIdAndUpdate(
       id,
       updateFields,
       { new: true, runValidators: true }
     ).select('-passwordHash');
-
-    if (!updated) {
-      return res.status(404).json({ success: false, message: 'Admin not found' });
-    }
 
     res.status(200).json({
       success: true,

@@ -4,32 +4,43 @@ const User = require('../models/User');
 const bootstrapAccount = async ({ email, password, name, role, area, city, phone }) => {
   if (!email || !password) return;
   const cleanEmail = email.trim().toLowerCase();
-  const salt = await bcrypt.genSalt(10);
-  const passwordHash = await bcrypt.hash(password.trim(), salt);
 
   const existing = await User.findOne({ email: cleanEmail });
   if (existing) {
-    existing.passwordHash = passwordHash;
+    // Preserve passwordHash if already set so user/admin updates are never lost
     existing.role = role;
     existing.isVerified = true;
-    if (name) existing.name = name;
-    if (area) existing.area = area;
-    if (city) existing.city = city;
+    if (name && !existing.name) existing.name = name;
+    if (area && !existing.area) existing.area = area;
+    if (city && !existing.city) existing.city = city;
     await existing.save();
-    console.log(`[Auth Bootstrapper] Synced ${role} account: ${cleanEmail}`);
-  } else {
-    await User.create({
-      name: name || 'Admin User',
-      email: cleanEmail,
-      phone: phone || '+91 98112 00000',
-      passwordHash,
-      role,
-      area: area || 'Delhi NCR',
-      city: city || 'New Delhi',
-      isVerified: true
-    });
-    console.log(`[Auth Bootstrapper] Created ${role} account: ${cleanEmail}`);
+    console.log(`[Auth Bootstrapper] Preserved credentials for ${role} account: ${cleanEmail}`);
+    return;
   }
+
+  // If this is the territory admin, check if ANY admin user already exists (e.g. if email was edited in UI)
+  if (role === 'admin' && !cleanEmail.includes('theprimecafe')) {
+    const anyAdmin = await User.findOne({ role: 'admin', email: { $not: /theprimecafe/ } });
+    if (anyAdmin) {
+      console.log(`[Auth Bootstrapper] Admin account already exists (${anyAdmin.email}), skipping default bootstrap.`);
+      return;
+    }
+  }
+
+  const salt = await bcrypt.genSalt(10);
+  const passwordHash = await bcrypt.hash(password.trim(), salt);
+
+  await User.create({
+    name: name || 'Admin User',
+    email: cleanEmail,
+    phone: phone || '+91 98112 00000',
+    passwordHash,
+    role,
+    area: area || 'Delhi NCR',
+    city: city || 'New Delhi',
+    isVerified: true
+  });
+  console.log(`[Auth Bootstrapper] Created ${role} account: ${cleanEmail}`);
 };
 
 const ensureEnvAccounts = async () => {
