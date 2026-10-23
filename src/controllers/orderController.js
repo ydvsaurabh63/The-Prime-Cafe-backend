@@ -1,4 +1,5 @@
 const Order = require('../models/Order');
+const Client = require('../models/Client');
 const MenuItem = require('../models/MenuItem');
 const Offer = require('../models/Offer');
 const Table = require('../models/Table');
@@ -159,7 +160,17 @@ exports.createOrder = async (req, res, next) => {
       orderNumber: order.orderNumber
     });
 
-    // 7. Emit Real-time Sockets
+    // 7. Dynamically update The Prime Cafe client sales & order count in MongoDB
+    try {
+      await Client.updateOne(
+        { cafeName: 'The Prime Cafe' },
+        { $inc: { totalSales: finalTotal, totalOrders: 1 } }
+      );
+    } catch (e) {
+      // ignore client update error
+    }
+
+    // 8. Emit Real-time Sockets
     emitNewOrder(order);
     emitAdminNotification(notification);
 
