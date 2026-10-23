@@ -30,9 +30,9 @@ const {
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/auth');
 
-// All Admin routes require authentication AND admin role
+// All Admin & Client Cafe routes require authentication
 router.use(protect);
-router.use(authorize('admin'));
+router.use(authorize('admin', 'client'));
 
 // Dashboard Stats
 router.get('/dashboard', getDashboardStats);
