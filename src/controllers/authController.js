@@ -124,7 +124,7 @@ exports.googleAuth = async (req, res, next) => {
 // @access  Public
 exports.login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, portal } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({
@@ -154,6 +154,37 @@ exports.login = async (req, res, next) => {
         success: false,
         message: 'Invalid email or password'
       });
+    }
+
+    // Portal-specific isolation
+    if (portal) {
+      const userEmail = user.email.toLowerCase();
+      const superEmail = (process.env.SUPERADMIN_EMAIL || 'superadmin@aajkalcafe.com').toLowerCase();
+      const adminEmail = (process.env.ADMIN_EMAIL || 'amit.sharma@aajkalcafe.com').toLowerCase();
+      const clientEmail = (process.env.CLIENT_EMAIL || 'admin@theprimecafe.com').toLowerCase();
+
+      const isSuper = user.role === 'superadmin' || userEmail === superEmail;
+      const isClient = user.role === 'client' || userEmail === clientEmail || userEmail.includes('theprimecafe');
+      const isAdmin = userEmail === adminEmail || (user.role === 'admin' && !isSuper && !isClient);
+
+      if (portal === 'superadmin' && !isSuper) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: Only Superadmin can log in through this portal.'
+        });
+      }
+      if (portal === 'admin' && !isAdmin) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: Only Territory Admin can log in through this portal.'
+        });
+      }
+      if (portal === 'client' && !isClient) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: Only Cafe Client accounts can log in through this portal.'
+        });
+      }
     }
 
     sendTokenResponse(user, 200, res, 'Logged in successfully');
