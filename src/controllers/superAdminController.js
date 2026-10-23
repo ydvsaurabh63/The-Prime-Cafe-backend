@@ -29,15 +29,15 @@ const ensureDefaultClients = async () => {
       plan: 'Enterprise',
       tablesCount: 15,
       plainPassword: 'Admin@123',
-      totalSales: realSales || 48620,
-      totalOrders: realOrdersCount || 312
+      totalSales: realSales || 0,
+      totalOrders: realOrdersCount || 0
     });
   } else {
     // Keep The Prime Cafe dynamically synced with real order calculations & plainPassword
     const prime = await Client.findOne({ cafeName: 'The Prime Cafe' });
     if (prime) {
-      prime.totalSales = realSales || 48620;
-      prime.totalOrders = realOrdersCount || 312;
+      prime.totalSales = realSales || 0;
+      prime.totalOrders = realOrdersCount || 0;
       if (!prime.plainPassword) prime.plainPassword = 'Admin@123';
       await prime.save();
     }
@@ -80,23 +80,23 @@ exports.getSuperAdminOverview = async (req, res, next) => {
     const allOrders = await Order.find({ orderStatus: { $nin: ['Cancelled', 'Rejected'] } });
     const totalRevenue = allOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
 
-    const clientsList = await Client.find().sort({ totalSales: -1 }).limit(5);
+    const clientsList = await Client.find().sort({ totalSales: -1 }).limit(10);
 
     res.status(200).json({
       success: true,
       data: {
-        totalRevenue: totalRevenue || 48620,
-        totalOrders: totalOrders || 312,
-        totalClients: totalClients || 1,
-        activeClients: activeClients || 1,
+        totalRevenue: totalRevenue || 0,
+        totalOrders: totalOrders || 0,
+        totalClients: totalClients || 0,
+        activeClients: activeClients || 0,
         pendingClients: pendingClients || 0,
-        totalAdmins: totalAdmins || 1,
-        totalCustomers: totalCustomers || 150,
+        totalAdmins: totalAdmins || 0,
+        totalCustomers: totalCustomers || 0,
         topClients: clientsList,
         systemHealth: {
           database: 'Connected',
-          apiLatency: '38ms',
-          uptime: '99.98%',
+          apiLatency: 'Operational',
+          uptime: '100%',
           status: 'Operational'
         }
       }
