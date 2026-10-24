@@ -108,12 +108,56 @@ exports.validateCoupon = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Coupon code is required' });
     }
 
+    const normalizedCode = couponCode.trim().toUpperCase();
     const now = new Date();
-    const offer = await Offer.findOne({
-      couponCode: couponCode.trim().toUpperCase(),
+    let offer = await Offer.findOne({
+      couponCode: normalizedCode,
       isActive: true,
       endDate: { $gte: now }
     });
+
+    // Milestone loyalty check-in coupons fallback
+    const LOYALTY_MILESTONE_COUPONS = {
+      PRIME10: {
+        couponCode: 'PRIME10',
+        discountType: 'percentage',
+        discountValue: 10,
+        minimumOrderAmount: 150,
+        maxDiscountAmount: 100
+      },
+      VISIT3COFFEE: {
+        couponCode: 'VISIT3COFFEE',
+        discountType: 'percentage',
+        discountValue: 15,
+        minimumOrderAmount: 200,
+        maxDiscountAmount: 150
+      },
+      MEGA5BURGER: {
+        couponCode: 'MEGA5BURGER',
+        discountType: 'percentage',
+        discountValue: 25,
+        minimumOrderAmount: 300,
+        maxDiscountAmount: 200
+      },
+      GOLD7PIZZA: {
+        couponCode: 'GOLD7PIZZA',
+        discountType: 'fixed',
+        discountValue: 200,
+        minimumOrderAmount: 500,
+        maxDiscountAmount: 200
+      },
+      VIP10FEAST: {
+        couponCode: 'VIP10FEAST',
+        discountType: 'percentage',
+        discountValue: 30,
+        minimumOrderAmount: 500,
+        maxDiscountAmount: 350
+      }
+    };
+
+    if (!offer && LOYALTY_MILESTONE_COUPONS[normalizedCode]) {
+      offer = LOYALTY_MILESTONE_COUPONS[normalizedCode];
+    }
 
     if (!offer) {
       return res.status(404).json({
