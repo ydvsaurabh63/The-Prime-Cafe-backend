@@ -5,6 +5,7 @@ const {
   getMenuItems,
   getMenuItemById,
   getOffers,
+  getCheckInMilestones,
   validateCoupon,
   validateTable,
   notifyStaff
@@ -14,6 +15,7 @@ router.get('/categories', getCategories);
 router.get('/menu', getMenuItems);
 router.get('/menu/:id', getMenuItemById);
 router.get('/offers', getOffers);
+router.get('/offers/checkin-milestones', getCheckInMilestones);
 router.post('/offers/validate-coupon', validateCoupon);
 router.get('/tables/validate/:identifier', validateTable);
 router.post('/notify-staff', notifyStaff);

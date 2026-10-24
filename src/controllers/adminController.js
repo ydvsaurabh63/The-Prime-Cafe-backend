@@ -5,6 +5,7 @@ const Offer = require('../models/Offer');
 const Notification = require('../models/Notification');
 const Table = require('../models/Table');
 const User = require('../models/User');
+const CheckInMilestone = require('../models/CheckInMilestone');
 const QRCode = require('qrcode');
 const bcrypt = require('bcryptjs');
 const { emitOrderStatusUpdate, emitAdminNotification } = require('../sockets/socketHandler');
@@ -79,10 +80,36 @@ exports.getAllOrders = async (req, res, next) => {
 
     const orders = await Order.find(query).sort({ createdAt: -1 });
 
+    const ordersWithVisits = await Promise.all(
+      orders.map(async (ord) => {
+        const ordObj = ord.toObject();
+        try {
+          if (ord.customerPhone) {
+            const previousVisits = await Order.countDocuments({
+              customerPhone: ord.customerPhone,
+              $or: [{ paymentStatus: 'paid' }, { orderStatus: 'Served' }]
+            });
+            ordObj.customerVisits = previousVisits;
+          } else if (ord.customer) {
+            const previousVisits = await Order.countDocuments({
+              customer: ord.customer,
+              $or: [{ paymentStatus: 'paid' }, { orderStatus: 'Served' }]
+            });
+            ordObj.customerVisits = previousVisits;
+          } else {
+            ordObj.customerVisits = 0;
+          }
+        } catch (e) {
+          ordObj.customerVisits = 0;
+        }
+        return ordObj;
+      })
+    );
+
     res.status(200).json({
       success: true,
-      count: orders.length,
-      data: orders
+      count: ordersWithVisits.length,
+      data: ordersWithVisits
     });
   } catch (err) {
     next(err);
@@ -734,3 +761,208 @@ exports.deleteTable = async (req, res, next) => {
     next(err);
   }
 };
+
+// ====================== CHECK-IN MILESTONES (CLIENT DYNAMIC CONTROL) ======================
+const DEFAULT_CHECKIN_MILESTONES = [
+  {
+    visitNumber: 1,
+    title: 'Welcome Treat',
+    discountType: 'percentage',
+    discountValue: 10,
+    couponCode: 'PRIME10',
+    minimumOrderAmount: 150,
+    maxDiscountAmount: 100,
+    description: 'Flat 10% discount on 1st check-in order above ₹150.',
+    isActive: true
+  },
+  {
+    visitNumber: 3,
+    title: 'Coffee Perk',
+    discountType: 'percentage',
+    discountValue: 15,
+    couponCode: 'VISIT3COFFEE',
+    minimumOrderAmount: 200,
+    maxDiscountAmount: 150,
+    description: '15% off on brews above ₹200 on 3rd visit.',
+    isActive: true
+  },
+  {
+    visitNumber: 5,
+    title: 'Foodie Treat',
+    discountType: 'percentage',
+    discountValue: 25,
+    couponCode: 'MEGA5BURGER',
+    minimumOrderAmount: 300,
+    maxDiscountAmount: 200,
+    description: '25% off on gourmet burgers & cafe snacks above ₹300 on 5th visit.',
+    isActive: true
+  },
+  {
+    visitNumber: 7,
+    title: 'Pizza Feast',
+    discountType: 'fixed',
+    discountValue: 200,
+    couponCode: 'GOLD7PIZZA',
+    minimumOrderAmount: 500,
+    maxDiscountAmount: 200,
+    description: 'Flat ₹200 savings on pizza feast orders above ₹500 on 7th visit.',
+    isActive: true
+  },
+  {
+    visitNumber: 10,
+    title: 'VIP Royalty',
+    discountType: 'percentage',
+    discountValue: 30,
+    couponCode: 'VIP10FEAST',
+    minimumOrderAmount: 500,
+    maxDiscountAmount: 350,
+    description: '30% VIP discount on entire table feast orders above ₹500 on 10th visit.',
+    isActive: true
+  }
+];
+
+exports.getAllCheckInMilestones = async (req, res, next) => {
+  try {
+    let milestones = await CheckInMilestone.find().sort({ visitNumber: 1 });
+    if (!milestones || milestones.length === 0) {
+      await CheckInMilestone.insertMany(DEFAULT_CHECKIN_MILESTONES);
+      milestones = await CheckInMilestone.find().sort({ visitNumber: 1 });
+    }
+    res.status(200).json({
+      success: true,
+      count: milestones.length,
+      data: milestones
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.createCheckInMilestone = async (req, res, next) => {
+  try {
+    const {
+      visitNumber,
+      title,
+      discountType,
+      discountValue,
+      couponCode,
+      minimumOrderAmount,
+      maxDiscountAmount,
+      description,
+      isActive
+    } = req.body;
+
+    if (!visitNumber || !title || discountValue === undefined || !couponCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'Visit number, title, discount value, and coupon code are required'
+      });
+    }
+
+    const existing = await CheckInMilestone.findOne({ visitNumber: Number(visitNumber) });
+    if (existing) {
+      existing.title = title.trim();
+      existing.discountType = discountType || 'percentage';
+      existing.discountValue = Number(discountValue);
+      existing.couponCode = couponCode.trim().toUpperCase();
+      existing.minimumOrderAmount = Number(minimumOrderAmount) || 0;
+      existing.maxDiscountAmount = Number(maxDiscountAmount) || 0;
+      existing.description = description ? description.trim() : '';
+      if (isActive !== undefined) existing.isActive = isActive;
+      await existing.save();
+
+      return res.status(200).json({
+        success: true,
+        message: `Milestone for Visit #${visitNumber} updated successfully`,
+        data: existing
+      });
+    }
+
+    const milestone = await CheckInMilestone.create({
+      visitNumber: Number(visitNumber),
+      title: title.trim(),
+      discountType: discountType || 'percentage',
+      discountValue: Number(discountValue),
+      couponCode: couponCode.trim().toUpperCase(),
+      minimumOrderAmount: Number(minimumOrderAmount) || 0,
+      maxDiscountAmount: Number(maxDiscountAmount) || 0,
+      description: description ? description.trim() : '',
+      isActive: isActive !== undefined ? isActive : true
+    });
+
+    res.status(201).json({
+      success: true,
+      message: `Milestone for Visit #${visitNumber} created successfully`,
+      data: milestone
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.updateCheckInMilestone = async (req, res, next) => {
+  try {
+    const milestone = await CheckInMilestone.findById(req.params.id);
+    if (!milestone) {
+      return res.status(404).json({ success: false, message: 'Milestone not found' });
+    }
+
+    const fields = [
+      'visitNumber',
+      'title',
+      'discountType',
+      'discountValue',
+      'couponCode',
+      'minimumOrderAmount',
+      'maxDiscountAmount',
+      'description',
+      'isActive'
+    ];
+
+    fields.forEach((f) => {
+      if (req.body[f] !== undefined) {
+        if (f === 'couponCode') {
+          milestone[f] = req.body[f].trim().toUpperCase();
+        } else if (
+          f === 'visitNumber' ||
+          f === 'discountValue' ||
+          f === 'minimumOrderAmount' ||
+          f === 'maxDiscountAmount'
+        ) {
+          milestone[f] = Number(req.body[f]);
+        } else {
+          milestone[f] = req.body[f];
+        }
+      }
+    });
+
+    await milestone.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Milestone updated successfully',
+      data: milestone
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.deleteCheckInMilestone = async (req, res, next) => {
+  try {
+    const milestone = await CheckInMilestone.findById(req.params.id);
+    if (!milestone) {
+      return res.status(404).json({ success: false, message: 'Milestone not found' });
+    }
+
+    await CheckInMilestone.deleteOne({ _id: milestone._id });
+
+    res.status(200).json({
+      success: true,
+      message: `Milestone for Visit #${milestone.visitNumber} deleted successfully`
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+

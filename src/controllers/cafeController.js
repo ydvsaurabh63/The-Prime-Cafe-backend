@@ -1,6 +1,7 @@
 const Category = require('../models/Category');
 const MenuItem = require('../models/MenuItem');
 const Offer = require('../models/Offer');
+const CheckInMilestone = require('../models/CheckInMilestone');
 const Table = require('../models/Table');
 const Notification = require('../models/Notification');
 const { emitAdminNotification } = require('../sockets/socketHandler');
@@ -97,6 +98,83 @@ exports.getOffers = async (req, res, next) => {
   }
 };
 
+// @desc    Get active customer check-in milestones dynamically
+// @route   GET /api/offers/checkin-milestones
+// @access  Public
+exports.getCheckInMilestones = async (req, res, next) => {
+  try {
+    let milestones = await CheckInMilestone.find({ isActive: true }).sort({ visitNumber: 1 });
+    if (!milestones || milestones.length === 0) {
+      const DEFAULT_MILESTONES = [
+        {
+          visitNumber: 1,
+          title: 'Welcome Treat',
+          discountType: 'percentage',
+          discountValue: 10,
+          couponCode: 'PRIME10',
+          minimumOrderAmount: 150,
+          maxDiscountAmount: 100,
+          description: 'Flat 10% discount on 1st check-in table order above ₹150.',
+          isActive: true
+        },
+        {
+          visitNumber: 3,
+          title: 'Coffee Perk',
+          discountType: 'percentage',
+          discountValue: 15,
+          couponCode: 'VISIT3COFFEE',
+          minimumOrderAmount: 200,
+          maxDiscountAmount: 150,
+          description: '15% off on brews above ₹200 on 3rd visit.',
+          isActive: true
+        },
+        {
+          visitNumber: 5,
+          title: 'Foodie Treat',
+          discountType: 'percentage',
+          discountValue: 25,
+          couponCode: 'MEGA5BURGER',
+          minimumOrderAmount: 300,
+          maxDiscountAmount: 200,
+          description: '25% off on gourmet burgers & cafe snacks above ₹300 on 5th visit.',
+          isActive: true
+        },
+        {
+          visitNumber: 7,
+          title: 'Pizza Feast',
+          discountType: 'fixed',
+          discountValue: 200,
+          couponCode: 'GOLD7PIZZA',
+          minimumOrderAmount: 500,
+          maxDiscountAmount: 200,
+          description: 'Flat ₹200 savings on pizza feast orders above ₹500 on 7th visit.',
+          isActive: true
+        },
+        {
+          visitNumber: 10,
+          title: 'VIP Royalty',
+          discountType: 'percentage',
+          discountValue: 30,
+          couponCode: 'VIP10FEAST',
+          minimumOrderAmount: 500,
+          maxDiscountAmount: 350,
+          description: '30% VIP discount on entire table feast orders above ₹500 on 10th visit.',
+          isActive: true
+        }
+      ];
+      await CheckInMilestone.insertMany(DEFAULT_MILESTONES);
+      milestones = await CheckInMilestone.find({ isActive: true }).sort({ visitNumber: 1 });
+    }
+    res.status(200).json({
+      success: true,
+      count: milestones.length,
+      data: milestones
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // @desc    Validate a coupon code and calculate discount
 // @route   POST /api/offers/validate-coupon
 // @access  Public
@@ -116,7 +194,24 @@ exports.validateCoupon = async (req, res, next) => {
       endDate: { $gte: now }
     });
 
-    // Milestone loyalty check-in coupons fallback
+    // Check dynamic check-in milestones in DB
+    if (!offer) {
+      const milestone = await CheckInMilestone.findOne({
+        couponCode: normalizedCode,
+        isActive: true
+      });
+      if (milestone) {
+        offer = {
+          couponCode: milestone.couponCode,
+          discountType: milestone.discountType,
+          discountValue: milestone.discountValue,
+          minimumOrderAmount: milestone.minimumOrderAmount,
+          maxDiscountAmount: milestone.maxDiscountAmount
+        };
+      }
+    }
+
+    // Fallback static milestone coupons
     const LOYALTY_MILESTONE_COUPONS = {
       PRIME10: {
         couponCode: 'PRIME10',

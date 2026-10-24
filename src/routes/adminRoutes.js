@@ -26,7 +26,11 @@ const {
   getAllTables,
   createTable,
   toggleTableStatus,
-  deleteTable
+  deleteTable,
+  getAllCheckInMilestones,
+  createCheckInMilestone,
+  updateCheckInMilestone,
+  deleteCheckInMilestone
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -58,6 +62,12 @@ router.get('/offers', getAllOffers);
 router.post('/offers', createOffer);
 router.patch('/offers/:id', updateOffer);
 router.delete('/offers/:id', deleteOffer);
+
+// Check-In Milestones CRUD (Client Dynamic Control)
+router.get('/checkin-milestones', getAllCheckInMilestones);
+router.post('/checkin-milestones', createCheckInMilestone);
+router.patch('/checkin-milestones/:id', updateCheckInMilestone);
+router.delete('/checkin-milestones/:id', deleteCheckInMilestone);
 
 // Notifications
 router.get('/notifications', getNotifications);
