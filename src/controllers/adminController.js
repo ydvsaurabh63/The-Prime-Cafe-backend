@@ -8,7 +8,7 @@ const User = require('../models/User');
 const CheckInMilestone = require('../models/CheckInMilestone');
 const QRCode = require('qrcode');
 const bcrypt = require('bcryptjs');
-const { emitOrderStatusUpdate, emitAdminNotification } = require('../sockets/socketHandler');
+const { emitOrderStatusUpdate, emitAdminNotification, emitCustomerNotification } = require('../sockets/socketHandler');
 
 // ====================== DASHBOARD OVERVIEW ======================
 exports.getDashboardStats = async (req, res, next) => {
@@ -569,6 +569,86 @@ exports.deleteNotification = async (req, res, next) => {
   }
 };
 
+// ====================== OWNER TO CUSTOMER MESSAGING ======================
+// @desc    Cafe Owner sends a notification / message to customers
+// @route   POST /api/admin/customer-messages
+// @access  Private (Admin / Client)
+exports.sendCustomerMessage = async (req, res, next) => {
+  try {
+    const { title, message, type, targetTable, priority } = req.body;
+
+    if (!title?.trim() || !message?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide both title and message for the customer.'
+      });
+    }
+
+    const notification = await Notification.create({
+      recipientRole: 'customer',
+      type: type || 'owner_message',
+      title: title.trim(),
+      message: message.trim(),
+      targetTable: targetTable?.trim() || 'All',
+      priority: priority || 'normal',
+      senderName: req.user?.name || 'Cafe Owner',
+      isRead: false
+    });
+
+    // Real-time broadcast via socket
+    emitCustomerNotification(notification);
+
+    res.status(201).json({
+      success: true,
+      message: 'Message sent to customers successfully!',
+      data: notification
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Get all messages sent by Cafe Owner to customers
+// @route   GET /api/admin/customer-messages
+// @access  Private (Admin / Client)
+exports.getSentCustomerMessages = async (req, res, next) => {
+  try {
+    const messages = await Notification.find({ recipientRole: 'customer' })
+      .sort({ createdAt: -1 })
+      .limit(50);
+
+    res.status(200).json({
+      success: true,
+      count: messages.length,
+      data: messages
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Delete a message sent to customers
+// @route   DELETE /api/admin/customer-messages/:id
+// @access  Private (Admin / Client)
+exports.deleteCustomerMessage = async (req, res, next) => {
+  try {
+    const notification = await Notification.findOne({
+      _id: req.params.id,
+      recipientRole: 'customer'
+    });
+
+    if (!notification) {
+      return res.status(404).json({ success: false, message: 'Message not found' });
+    }
+
+    await Notification.deleteOne({ _id: notification._id });
+    res.status(200).json({ success: true, message: 'Message deleted successfully' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+
 // ====================== ADMIN PROFILE ======================
 exports.getAdminProfile = async (req, res, next) => {
   try {
@@ -766,35 +846,35 @@ exports.deleteTable = async (req, res, next) => {
 const DEFAULT_CHECKIN_MILESTONES = [
   {
     visitNumber: 1,
-    title: 'Welcome Treat',
+    title: '10% OFF Welcome',
     discountType: 'percentage',
     discountValue: 10,
     couponCode: 'PRIME10',
-    minimumOrderAmount: 150,
+    minimumOrderAmount: 0,
     maxDiscountAmount: 100,
-    description: 'Flat 10% discount on 1st check-in order above ₹150.',
+    description: 'Flat 10% discount on 1st check-in order.',
     isActive: true
   },
   {
     visitNumber: 3,
-    title: 'Coffee Perk',
-    discountType: 'percentage',
-    discountValue: 15,
-    couponCode: 'VISIT3COFFEE',
-    minimumOrderAmount: 200,
-    maxDiscountAmount: 150,
-    description: '15% off on brews above ₹200 on 3rd visit.',
+    title: 'Free Coffee Perk',
+    discountType: 'fixed',
+    discountValue: 120,
+    couponCode: 'FREECOFFEE',
+    minimumOrderAmount: 0,
+    maxDiscountAmount: 120,
+    description: 'Free artisan coffee on 3rd visit.',
     isActive: true
   },
   {
     visitNumber: 5,
-    title: 'Foodie Treat',
-    discountType: 'percentage',
-    discountValue: 25,
-    couponCode: 'MEGA5BURGER',
-    minimumOrderAmount: 300,
-    maxDiscountAmount: 200,
-    description: '25% off on gourmet burgers & cafe snacks above ₹300 on 5th visit.',
+    title: 'Free Fried Rice Treat',
+    discountType: 'fixed',
+    discountValue: 160,
+    couponCode: 'FREEFRIEDRICE',
+    minimumOrderAmount: 0,
+    maxDiscountAmount: 160,
+    description: 'Free delicious Fried Rice on 5th visit.',
     isActive: true
   },
   {

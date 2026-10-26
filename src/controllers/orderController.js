@@ -98,11 +98,25 @@ exports.createOrder = async (req, res, next) => {
 
     if (couponCode && couponCode.trim()) {
       const now = new Date();
-      const offer = await Offer.findOne({
+      let offer = await Offer.findOne({
         couponCode: couponCode.trim().toUpperCase(),
         isActive: true,
         endDate: { $gte: now }
       });
+
+      if (!offer) {
+        const LOYALTY_COUPONS = {
+          FREECOFFEE: { couponCode: 'FREECOFFEE', discountType: 'fixed', discountValue: 120, minimumOrderAmount: 120 },
+          BURGER50: { couponCode: 'BURGER50', discountType: 'fixed', discountValue: 50, minimumOrderAmount: 150 },
+          FREEGARLIC: { couponCode: 'FREEGARLIC', discountType: 'fixed', discountValue: 150, minimumOrderAmount: 150 },
+          PASTA100: { couponCode: 'PASTA100', discountType: 'fixed', discountValue: 100, minimumOrderAmount: 200 },
+          FREEDESSERT: { couponCode: 'FREEDESSERT', discountType: 'fixed', discountValue: 180, minimumOrderAmount: 180 }
+        };
+        const normalized = couponCode.trim().toUpperCase();
+        if (LOYALTY_COUPONS[normalized]) {
+          offer = LOYALTY_COUPONS[normalized];
+        }
+      }
 
       if (offer) {
         if (!offer.minimumOrderAmount || calculatedSubtotal >= offer.minimumOrderAmount) {
@@ -119,6 +133,7 @@ exports.createOrder = async (req, res, next) => {
         }
       }
     }
+
 
     // 4. Server-side taxes & total
     // Aaj Kal Cafe: 5% GST included or added (5% standard cafe rate)

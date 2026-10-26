@@ -108,35 +108,35 @@ exports.getCheckInMilestones = async (req, res, next) => {
       const DEFAULT_MILESTONES = [
         {
           visitNumber: 1,
-          title: 'Welcome Treat',
+          title: '10% OFF Welcome',
           discountType: 'percentage',
           discountValue: 10,
           couponCode: 'PRIME10',
-          minimumOrderAmount: 150,
+          minimumOrderAmount: 0,
           maxDiscountAmount: 100,
-          description: 'Flat 10% discount on 1st check-in table order above ₹150.',
+          description: 'Flat 10% discount on 1st order.',
           isActive: true
         },
         {
           visitNumber: 3,
-          title: 'Coffee Perk',
-          discountType: 'percentage',
-          discountValue: 15,
-          couponCode: 'VISIT3COFFEE',
-          minimumOrderAmount: 200,
-          maxDiscountAmount: 150,
-          description: '15% off on brews above ₹200 on 3rd visit.',
+          title: 'Free Coffee Perk',
+          discountType: 'fixed',
+          discountValue: 120,
+          couponCode: 'FREECOFFEE',
+          minimumOrderAmount: 0,
+          maxDiscountAmount: 120,
+          description: 'Free artisan coffee on 3rd visit.',
           isActive: true
         },
         {
           visitNumber: 5,
-          title: 'Foodie Treat',
-          discountType: 'percentage',
-          discountValue: 25,
-          couponCode: 'MEGA5BURGER',
-          minimumOrderAmount: 300,
-          maxDiscountAmount: 200,
-          description: '25% off on gourmet burgers & cafe snacks above ₹300 on 5th visit.',
+          title: 'Free Fried Rice Treat',
+          discountType: 'fixed',
+          discountValue: 160,
+          couponCode: 'FREEFRIEDRICE',
+          minimumOrderAmount: 0,
+          maxDiscountAmount: 160,
+          description: 'Free delicious Fried Rice on 5th visit.',
           isActive: true
         },
         {
@@ -217,21 +217,42 @@ exports.validateCoupon = async (req, res, next) => {
         couponCode: 'PRIME10',
         discountType: 'percentage',
         discountValue: 10,
-        minimumOrderAmount: 150,
+        minimumOrderAmount: 0,
         maxDiscountAmount: 100
       },
+      FREECOFFEE: {
+        couponCode: 'FREECOFFEE',
+        discountType: 'fixed',
+        discountValue: 120,
+        minimumOrderAmount: 0,
+        maxDiscountAmount: 120
+      },
       VISIT3COFFEE: {
-        couponCode: 'VISIT3COFFEE',
-        discountType: 'percentage',
-        discountValue: 15,
-        minimumOrderAmount: 200,
-        maxDiscountAmount: 150
+        couponCode: 'FREECOFFEE',
+        discountType: 'fixed',
+        discountValue: 120,
+        minimumOrderAmount: 0,
+        maxDiscountAmount: 120
+      },
+      FREEFRIEDRICE: {
+        couponCode: 'FREEFRIEDRICE',
+        discountType: 'fixed',
+        discountValue: 160,
+        minimumOrderAmount: 0,
+        maxDiscountAmount: 160
+      },
+      RICE5TREAT: {
+        couponCode: 'FREEFRIEDRICE',
+        discountType: 'fixed',
+        discountValue: 160,
+        minimumOrderAmount: 0,
+        maxDiscountAmount: 160
       },
       MEGA5BURGER: {
         couponCode: 'MEGA5BURGER',
         discountType: 'percentage',
         discountValue: 25,
-        minimumOrderAmount: 300,
+        minimumOrderAmount: 0,
         maxDiscountAmount: 200
       },
       GOLD7PIZZA: {
@@ -247,8 +268,37 @@ exports.validateCoupon = async (req, res, next) => {
         discountValue: 30,
         minimumOrderAmount: 500,
         maxDiscountAmount: 350
+      },
+      BURGER50: {
+        couponCode: 'BURGER50',
+        discountType: 'fixed',
+        discountValue: 50,
+        minimumOrderAmount: 150,
+        maxDiscountAmount: 50
+      },
+      FREEGARLIC: {
+        couponCode: 'FREEGARLIC',
+        discountType: 'fixed',
+        discountValue: 150,
+        minimumOrderAmount: 150,
+        maxDiscountAmount: 150
+      },
+      PASTA100: {
+        couponCode: 'PASTA100',
+        discountType: 'fixed',
+        discountValue: 100,
+        minimumOrderAmount: 200,
+        maxDiscountAmount: 100
+      },
+      FREEDESSERT: {
+        couponCode: 'FREEDESSERT',
+        discountType: 'fixed',
+        discountValue: 180,
+        minimumOrderAmount: 180,
+        maxDiscountAmount: 180
       }
     };
+
 
     if (!offer && LOYALTY_MILESTONE_COUPONS[normalizedCode]) {
       offer = LOYALTY_MILESTONE_COUPONS[normalizedCode];
@@ -377,4 +427,59 @@ exports.notifyStaff = async (req, res, next) => {
     next(err);
   }
 };
+
+// @desc    Get messages/notices sent by Cafe Owner to customers
+// @route   GET /api/customer-notifications
+// @access  Public
+exports.getCustomerNotifications = async (req, res, next) => {
+  try {
+    const { table } = req.query;
+    const filter = { recipientRole: 'customer' };
+
+    // If customer specifies table, return messages for 'All' or for their specific table
+    if (table) {
+      filter.$or = [
+        { targetTable: 'All' },
+        { targetTable: { $regex: new RegExp(`^${table.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } },
+        { targetTable: { $regex: new RegExp(`^Table\\s*${table.replace(/[^0-9]/g, '')}$`, 'i') } }
+      ];
+    }
+
+    const notifications = await Notification.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(30);
+
+    res.status(200).json({
+      success: true,
+      count: notifications.length,
+      data: notifications
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Mark customer notification as read
+// @route   PATCH /api/customer-notifications/:id/read
+// @access  Public
+exports.markCustomerNotificationRead = async (req, res, next) => {
+  try {
+    const notification = await Notification.findOne({
+      _id: req.params.id,
+      recipientRole: 'customer'
+    });
+
+    if (!notification) {
+      return res.status(404).json({ success: false, message: 'Notification not found' });
+    }
+
+    notification.isRead = true;
+    await notification.save();
+
+    res.status(200).json({ success: true, data: notification });
+  } catch (err) {
+    next(err);
+  }
+};
+
 

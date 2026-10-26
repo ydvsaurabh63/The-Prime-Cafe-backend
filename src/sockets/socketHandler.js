@@ -52,10 +52,22 @@ const emitAdminNotification = (notification) => {
   }
 };
 
+// Helper to broadcast notification from Cafe Owner to Customers
+const emitCustomerNotification = (notification) => {
+  if (ioInstance) {
+    // Broadcast to all connected customer clients
+    ioInstance.emit('customer_notification', notification);
+    if (notification.targetTable && notification.targetTable !== 'All') {
+      ioInstance.emit(`table_notification_${notification.targetTable}`, notification);
+    }
+  }
+};
+
 module.exports = {
   initSocket,
   getIO,
   emitNewOrder,
   emitOrderStatusUpdate,
-  emitAdminNotification
+  emitAdminNotification,
+  emitCustomerNotification
 };

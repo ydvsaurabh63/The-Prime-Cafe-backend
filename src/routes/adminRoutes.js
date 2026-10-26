@@ -20,6 +20,9 @@ const {
   markNotificationRead,
   markAllNotificationsRead,
   deleteNotification,
+  sendCustomerMessage,
+  getSentCustomerMessages,
+  deleteCustomerMessage,
   getAdminProfile,
   updateAdminProfile,
   changeAdminPassword,
@@ -74,6 +77,11 @@ router.get('/notifications', getNotifications);
 router.patch('/notifications/read-all', markAllNotificationsRead);
 router.patch('/notifications/:id/read', markNotificationRead);
 router.delete('/notifications/:id', deleteNotification);
+
+// Cafe Owner to Customer Messaging
+router.post('/customer-messages', sendCustomerMessage);
+router.get('/customer-messages', getSentCustomerMessages);
+router.delete('/customer-messages/:id', deleteCustomerMessage);
 
 // Admin Profile
 router.get('/profile', getAdminProfile);

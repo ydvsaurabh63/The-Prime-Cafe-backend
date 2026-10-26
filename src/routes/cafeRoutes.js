@@ -8,7 +8,9 @@ const {
   getCheckInMilestones,
   validateCoupon,
   validateTable,
-  notifyStaff
+  notifyStaff,
+  getCustomerNotifications,
+  markCustomerNotificationRead
 } = require('../controllers/cafeController');
 
 router.get('/categories', getCategories);
@@ -19,5 +21,9 @@ router.get('/offers/checkin-milestones', getCheckInMilestones);
 router.post('/offers/validate-coupon', validateCoupon);
 router.get('/tables/validate/:identifier', validateTable);
 router.post('/notify-staff', notifyStaff);
+
+// Customer Notification Routes (Owner to Customer)
+router.get('/customer-notifications', getCustomerNotifications);
+router.patch('/customer-notifications/:id/read', markCustomerNotificationRead);
 
 module.exports = router;

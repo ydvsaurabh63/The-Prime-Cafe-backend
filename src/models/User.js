@@ -75,9 +75,14 @@ const userSchema = new mongoose.Schema(
     rewardPoints: {
       type: Number,
       default: 50
+    },
+    claimedRewards: {
+      type: [Number],
+      default: []
     }
   },
   { timestamps: true }
+
 );
 
 module.exports = mongoose.model('User', userSchema);

@@ -12,6 +12,8 @@ const profileRoutes = require('./routes/profileRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const superAdminRoutes = require('./routes/superAdminRoutes');
+const loyaltyRoutes = require('./routes/loyaltyRoutes');
+
 
 const app = express();
 
@@ -66,6 +68,8 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/superadmin', superAdminRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/loyalty', loyaltyRoutes);
+
 
 // Catch 404
 app.use((req, res, next) => {
