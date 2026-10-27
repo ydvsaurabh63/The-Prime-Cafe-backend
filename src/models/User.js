@@ -18,8 +18,8 @@ const userSchema = new mongoose.Schema(
     },
     phone: {
       type: String,
-      required: [true, 'Please provide a mobile phone number'],
-      trim: true
+      trim: true,
+      default: ''
     },
     passwordHash: {
       type: String,
