@@ -23,7 +23,8 @@ const notificationSchema = new mongoose.Schema(
         'owner_message',
         'cafe_announcement',
         'kitchen_alert',
-        'offer_alert'
+        'offer_alert',
+        'new_review'
       ],
       default: 'customer_request'
     },

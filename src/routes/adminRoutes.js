@@ -33,7 +33,8 @@ const {
   getAllCheckInMilestones,
   createCheckInMilestone,
   updateCheckInMilestone,
-  deleteCheckInMilestone
+  deleteCheckInMilestone,
+  getAllCustomers
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -93,5 +94,8 @@ router.get('/tables', getAllTables);
 router.post('/tables', createTable);
 router.patch('/tables/:id/toggle', toggleTableStatus);
 router.delete('/tables/:id', deleteTable);
+
+// Customer Leads & QR Scanned Guests
+router.get('/customers', getAllCustomers);
 
 module.exports = router;

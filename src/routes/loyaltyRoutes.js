@@ -4,6 +4,7 @@ const { getLoyaltyStatus, claimReward } = require('../controllers/loyaltyControl
 const { protect, optionalAuth } = require('../middleware/auth');
 
 router.get('/status', optionalAuth, getLoyaltyStatus);
-router.post('/claim', protect, claimReward);
+router.post('/claim', optionalAuth, claimReward);
 
 module.exports = router;
+

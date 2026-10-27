@@ -1046,3 +1046,91 @@ exports.deleteCheckInMilestone = async (req, res, next) => {
   }
 };
 
+// ====================== CUSTOMER LEADS & QR SCANS ======================
+// @desc    Get all registered customers from QR scans / form submissions
+// @route   GET /api/admin/customers
+// @access  Private (Admin / Client)
+exports.getAllCustomers = async (req, res, next) => {
+  try {
+    const { search, foodPreference, table, todayOnly } = req.query;
+
+    const query = { role: 'customer' };
+
+    if (foodPreference && foodPreference !== 'All') {
+      query.foodPreference = foodPreference;
+    }
+
+    if (table && table !== 'All') {
+      query.scannedTable = new RegExp(table, 'i');
+    }
+
+    if (todayOnly === 'true') {
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      query.createdAt = { $gte: startOfToday };
+    }
+
+    if (search && search.trim()) {
+      const regex = new RegExp(search.trim(), 'i');
+      query.$or = [
+        { name: regex },
+        { phone: regex },
+        { email: regex },
+        { area: regex },
+        { city: regex },
+        { scannedTable: regex }
+      ];
+    }
+
+    const customers = await User.find(query).sort({ createdAt: -1 });
+
+    // Fetch order stats for each customer to enrich lead data
+    const customerIds = customers.map((c) => c._id);
+    const orders = await Order.find({ customer: { $in: customerIds } });
+
+    const orderStatsMap = {};
+    orders.forEach((o) => {
+      const cId = o.customer ? o.customer.toString() : null;
+      if (cId) {
+        if (!orderStatsMap[cId]) {
+          orderStatsMap[cId] = { totalOrders: 0, totalSpent: 0 };
+        }
+        orderStatsMap[cId].totalOrders += 1;
+        if (o.orderStatus !== 'Cancelled' && o.orderStatus !== 'Rejected') {
+          orderStatsMap[cId].totalSpent += o.totalAmount || 0;
+        }
+      }
+    });
+
+    const enrichedCustomers = customers.map((c) => {
+      const cObj = c.toObject();
+      const s = orderStatsMap[c._id.toString()] || { totalOrders: 0, totalSpent: 0 };
+      cObj.totalOrders = s.totalOrders;
+      cObj.totalSpent = s.totalSpent;
+      return cObj;
+    });
+
+    // KPI stats
+    const allCustomers = await User.find({ role: 'customer' });
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const stats = {
+      total: allCustomers.length,
+      todayNew: allCustomers.filter((c) => new Date(c.createdAt) >= startOfToday).length,
+      veg: allCustomers.filter((c) => c.foodPreference === 'Veg').length,
+      nonVeg: allCustomers.filter((c) => c.foodPreference === 'Non Veg').length,
+      both: allCustomers.filter((c) => c.foodPreference === 'Both').length
+    };
+
+    res.status(200).json({
+      success: true,
+      count: enrichedCustomers.length,
+      data: enrichedCustomers,
+      stats
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+

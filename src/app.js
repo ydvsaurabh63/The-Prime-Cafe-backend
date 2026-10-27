@@ -13,9 +13,10 @@ const adminRoutes = require('./routes/adminRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const superAdminRoutes = require('./routes/superAdminRoutes');
 const loyaltyRoutes = require('./routes/loyaltyRoutes');
-
+const reviewRoutes = require('./routes/reviewRoutes');
 
 const app = express();
+
 
 // Security headers
 app.use(helmet());
@@ -69,6 +70,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/superadmin', superAdminRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/loyalty', loyaltyRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 
 // Catch 404

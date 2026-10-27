@@ -2,17 +2,16 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const User = require('../models/User');
 const VerificationRecord = require('../models/VerificationRecord');
+const Notification = require('../models/Notification');
+const { getIO } = require('../sockets/socketHandler');
 const { sendTokenResponse } = require('../utils/token');
 
-// @desc    Register a new customer
-// @route   POST /api/auth/register
-// @access  Public
 // @desc    Register a new customer with table scan onboarding details
 // @route   POST /api/auth/register
 // @access  Public
 exports.register = async (req, res, next) => {
   try {
-    const { name, email, phone, area, city, pincode, foodPreference, password } = req.body;
+    const { name, email, phone, area, city, pincode, foodPreference, password, table } = req.body;
 
     if (!name || !phone) {
       return res.status(400).json({
@@ -35,8 +34,34 @@ exports.register = async (req, res, next) => {
       if (city) existingUser.city = city.trim();
       if (pincode) existingUser.pincode = pincode.trim();
       if (foodPreference) existingUser.foodPreference = foodPreference;
+      if (table) existingUser.scannedTable = table.trim();
+      existingUser.visitCount = (existingUser.visitCount || 1) + 1;
       existingUser.isVerified = true;
       await existingUser.save();
+
+      // Emit real-time notification to management panel
+      let notif = null;
+      try {
+        notif = await Notification.create({
+          recipientRole: 'admin',
+          type: 'customer_request',
+          title: `👤 Guest Return Check-In: ${existingUser.name}`,
+          message: `${existingUser.name} (+91 ${existingUser.phone}) checked in (Visit #${existingUser.visitCount})${table ? ` at ${table}` : ''}. Preference: ${existingUser.foodPreference}${existingUser.area ? ` | ${existingUser.area}` : ''}`,
+          priority: 'normal',
+          senderName: existingUser.name
+        });
+      } catch {}
+
+      try {
+        const io = getIO();
+        if (io) {
+          io.to('admin_room').emit('new_customer', existingUser);
+          if (notif) {
+            io.to('admin_room').emit('admin_notification', notif);
+          }
+        }
+      } catch {}
+
       return sendTokenResponse(existingUser, 200, res, `Welcome back, ${existingUser.name}!`);
     }
 
@@ -54,11 +79,37 @@ exports.register = async (req, res, next) => {
       city: city ? city.trim() : '',
       pincode: pincode ? pincode.trim() : '',
       foodPreference: foodPreference || 'Both',
+      scannedTable: table ? table.trim() : '',
+      visitCount: 1,
       passwordHash,
       role: 'customer',
       isVerified: true,
       rewardPoints: 50 // welcome bonus
     });
+
+    // Create Admin Notification for new guest arrival
+    let adminNotif = null;
+    try {
+      adminNotif = await Notification.create({
+        recipientRole: 'admin',
+        type: 'customer_request',
+        title: `👤 New Guest Check-In: ${user.name}`,
+        message: `${user.name} (+91 ${user.phone}) scanned QR and registered${user.scannedTable ? ` at ${user.scannedTable}` : ''}. Preference: ${user.foodPreference}${user.area ? ` | Locality: ${user.area}` : ''}`,
+        priority: 'normal',
+        senderName: user.name
+      });
+    } catch {}
+
+    // Emit live WebSocket event to connected Management Panel admins
+    try {
+      const io = getIO();
+      if (io) {
+        io.to('admin_room').emit('new_customer', user);
+        if (adminNotif) {
+          io.to('admin_room').emit('admin_notification', adminNotif);
+        }
+      }
+    } catch {}
 
     sendTokenResponse(user, 201, res, 'Registration successful. Welcome to The Prime Cafe!');
   } catch (err) {
@@ -179,30 +230,28 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    // Portal-specific isolation
+    // Portal-specific dynamic authorization
     if (portal) {
       const userEmail = user.email.toLowerCase();
       const superEmail = (process.env.SUPERADMIN_EMAIL || 'superadmin@aajkalcafe.com').toLowerCase();
-      const adminEmail = (process.env.ADMIN_EMAIL || 'amit.sharma@aajkalcafe.com').toLowerCase();
-      const clientEmail = (process.env.CLIENT_EMAIL || 'admin@theprimecafe.com').toLowerCase();
 
       const Client = require('../models/Client');
       const isClientInDb = await Client.exists({ email: userEmail });
 
       const isSuper = user.role === 'superadmin' || userEmail === superEmail;
-      const isClient = user.role === 'client' || userEmail === clientEmail || userEmail === 'vikas@theprimecafe.com' || userEmail.includes('theprimecafe') || !!isClientInDb;
-      const isAdmin = userEmail === adminEmail || (user.role === 'admin' && !isSuper && !isClient);
+      const isAdmin = user.role === 'admin' || isSuper;
+      const isClient = user.role === 'client' || !!isClientInDb || isAdmin || isSuper;
 
       if (portal === 'superadmin' && !isSuper) {
         return res.status(403).json({
           success: false,
-          message: 'Access denied: Only Superadmin can log in through this portal.'
+          message: 'Access denied: Only Superadmin accounts can log in through this portal.'
         });
       }
       if (portal === 'admin' && !isAdmin) {
         return res.status(403).json({
           success: false,
-          message: 'Access denied: Only Territory Admin can log in through this portal.'
+          message: 'Access denied: Only Territory Admin accounts can log in through this portal.'
         });
       }
       if (portal === 'client' && !isClient) {

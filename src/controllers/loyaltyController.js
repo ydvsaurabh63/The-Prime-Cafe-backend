@@ -226,32 +226,35 @@ exports.claimReward = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Stage configuration not found' });
     }
 
-    const user = await User.findById(req.user._id);
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+    let claimedRewards = [stageNum];
+    if (req.user) {
+      const user = await User.findById(req.user._id);
+      if (user) {
+        // Check order count
+        const completedOrders = await Order.countDocuments({
+          customer: user._id,
+          orderStatus: { $nin: ['Cancelled', 'Rejected'] }
+        });
+
+        if (completedOrders < stageConfig.requiredOrders) {
+          return res.status(400).json({
+            success: false,
+            message: `You need ${stageConfig.requiredOrders} completed orders to unlock ${stageConfig.stage}. You currently have ${completedOrders}.`
+          });
+        }
+
+        if (!Array.isArray(user.claimedRewards)) {
+          user.claimedRewards = [];
+        }
+
+        if (!user.claimedRewards.includes(stageNum)) {
+          user.claimedRewards.push(stageNum);
+          await user.save();
+        }
+        claimedRewards = user.claimedRewards;
+      }
     }
 
-    // Check order count
-    const completedOrders = await Order.countDocuments({
-      customer: user._id,
-      orderStatus: { $nin: ['Cancelled', 'Rejected'] }
-    });
-
-    if (completedOrders < stageConfig.requiredOrders) {
-      return res.status(400).json({
-        success: false,
-        message: `You need ${stageConfig.requiredOrders} completed orders to unlock ${stageConfig.stage}. You currently have ${completedOrders}.`
-      });
-    }
-
-    if (!Array.isArray(user.claimedRewards)) {
-      user.claimedRewards = [];
-    }
-
-    if (!user.claimedRewards.includes(stageNum)) {
-      user.claimedRewards.push(stageNum);
-      await user.save();
-    }
 
     // Ensure coupon exists in database offer table for instant checkout validity
     try {
@@ -281,7 +284,7 @@ exports.claimReward = async (req, res, next) => {
         stageNumber: stageNum,
         couponCode: stageConfig.couponCode,
         title: stageConfig.title,
-        claimedRewards: user.claimedRewards
+        claimedRewards: claimedRewards
       }
     });
   } catch (err) {

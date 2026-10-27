@@ -79,6 +79,15 @@ const userSchema = new mongoose.Schema(
     claimedRewards: {
       type: [Number],
       default: []
+    },
+    scannedTable: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    visitCount: {
+      type: Number,
+      default: 1
     }
   },
   { timestamps: true }
