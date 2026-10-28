@@ -63,11 +63,27 @@ const emitCustomerNotification = (notification) => {
   }
 };
 
+// Helper to broadcast live menu updates (item added, edited, deleted, stock status changed)
+const emitMenuUpdated = (data) => {
+  if (ioInstance) {
+    ioInstance.emit('menu_updated', data);
+  }
+};
+
+// Helper to broadcast offers update
+const emitOfferUpdated = (data) => {
+  if (ioInstance) {
+    ioInstance.emit('offer_updated', data);
+  }
+};
+
 module.exports = {
   initSocket,
   getIO,
   emitNewOrder,
   emitOrderStatusUpdate,
   emitAdminNotification,
-  emitCustomerNotification
+  emitCustomerNotification,
+  emitMenuUpdated,
+  emitOfferUpdated
 };

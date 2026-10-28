@@ -8,7 +8,13 @@ const User = require('../models/User');
 const CheckInMilestone = require('../models/CheckInMilestone');
 const QRCode = require('qrcode');
 const bcrypt = require('bcryptjs');
-const { emitOrderStatusUpdate, emitAdminNotification, emitCustomerNotification } = require('../sockets/socketHandler');
+const {
+  emitOrderStatusUpdate,
+  emitAdminNotification,
+  emitCustomerNotification,
+  emitMenuUpdated,
+  emitOfferUpdated
+} = require('../sockets/socketHandler');
 
 // ====================== DASHBOARD OVERVIEW ======================
 exports.getDashboardStats = async (req, res, next) => {
@@ -237,6 +243,8 @@ exports.createMenuItem = async (req, res, next) => {
       availability: availability !== undefined ? availability : true
     });
 
+    emitMenuUpdated({ action: 'create', item });
+
     res.status(201).json({
       success: true,
       message: 'Menu item created successfully',
@@ -281,6 +289,8 @@ exports.updateMenuItem = async (req, res, next) => {
 
     await item.save();
 
+    emitMenuUpdated({ action: 'update', item });
+
     res.status(200).json({
       success: true,
       message: 'Menu item updated successfully',
@@ -299,6 +309,8 @@ exports.deleteMenuItem = async (req, res, next) => {
     }
 
     await MenuItem.deleteOne({ _id: item._id });
+
+    emitMenuUpdated({ action: 'delete', id: item._id, name: item.name });
 
     res.status(200).json({
       success: true,
@@ -333,6 +345,8 @@ exports.createCategory = async (req, res, next) => {
       order: Number(order) || 0
     });
 
+    emitMenuUpdated({ action: 'category_create', category });
+
     res.status(201).json({
       success: true,
       message: 'Category created successfully',
@@ -363,6 +377,8 @@ exports.updateCategory = async (req, res, next) => {
 
     await category.save();
 
+    emitMenuUpdated({ action: 'category_update', category });
+
     res.status(200).json({
       success: true,
       message: 'Category updated successfully',
@@ -390,6 +406,8 @@ exports.deleteCategory = async (req, res, next) => {
     }
 
     await Category.deleteOne({ _id: category._id });
+
+    emitMenuUpdated({ action: 'category_delete', id: category._id });
 
     res.status(200).json({
       success: true,
@@ -456,6 +474,7 @@ exports.createOffer = async (req, res, next) => {
       message: 'Offer created successfully',
       data: offer
     });
+    emitOfferUpdated({ action: 'create', offer });
   } catch (err) {
     next(err);
   }
@@ -485,6 +504,8 @@ exports.updateOffer = async (req, res, next) => {
 
     await offer.save();
 
+    emitOfferUpdated({ action: 'update', offer });
+
     res.status(200).json({
       success: true,
       message: 'Offer updated successfully',
@@ -503,6 +524,8 @@ exports.deleteOffer = async (req, res, next) => {
     }
 
     await Offer.deleteOne({ _id: offer._id });
+
+    emitOfferUpdated({ action: 'delete', id: offer._id });
 
     res.status(200).json({
       success: true,
