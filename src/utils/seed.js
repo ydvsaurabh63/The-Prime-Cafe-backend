@@ -85,39 +85,53 @@ const seedData = async () => {
     // 4. Create Categories
     const categoriesData = [
       {
-        name: 'Coffee & Tea',
-        slug: 'coffee-tea',
-        description: 'Artisanal hot brews, specialty espresso, masala chai, and aromatic infusions.',
-        image: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=600&q=80',
+        name: 'TPC SPECIAL PREMIUM TEA',
+        slug: 'tpc-special-premium-tea',
+        description: 'Exclusive artisanal and handcrafted premium hot teas.',
+        image: 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=600&q=80',
         order: 1
       },
       {
-        name: 'Cold Coffee & Shakes',
-        slug: 'cold-coffee-shakes',
-        description: 'Chilled frappes, thick decadent milkshakes, iced mocha, and refreshing coolers.',
-        image: 'https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?auto=format&fit=crop&w=600&q=80',
+        name: 'TEA & COFFEE',
+        slug: 'tea-coffee',
+        description: 'Classic handcrafted teas, milk teas, and hot coffee brews.',
+        image: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=600&q=80',
         order: 2
       },
       {
-        name: 'Pizza & Burger',
-        slug: 'pizza-burger',
-        description: 'Stone-baked thin crust pizzas and gourmet handcrafted burgers with crispy fries.',
-        image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=600&q=80',
+        name: 'CHINEES',
+        slug: 'chinees',
+        description: 'Sizzling noodles, crispy momos, fried rice, and Indo-Chinese delights.',
+        image: 'https://images.unsplash.com/photo-1585032226651-759b368d7246?auto=format&fit=crop&w=600&q=80',
         order: 3
       },
       {
-        name: 'Snacks',
-        slug: 'snacks',
-        description: 'Crispy loaded nachos, peri-peri fries, cheese garlic bread, and savory bites.',
-        image: 'https://images.unsplash.com/photo-1585325701165-351af916e581?auto=format&fit=crop&w=600&q=80',
+        name: 'INSTANT HUNGER',
+        slug: 'instant-hunger',
+        description: 'Quick bites, cheesy burgers, sandwiches, crispy fries, and savory snacks.',
+        image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=600&q=80',
         order: 4
       },
       {
-        name: 'Desserts',
-        slug: 'desserts',
-        description: 'Warm walnut brownies, sizzling sundaes, cheesecakes, and artisanal treats.',
-        image: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=600&q=80',
+        name: 'COMBO',
+        slug: 'combo',
+        description: 'Value-packed food and drink meal combinations.',
+        image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80',
         order: 5
+      },
+      {
+        name: 'Cold Drinks',
+        slug: 'cold-drinks',
+        description: 'Packaged cold drinks, sodas, and fizzy refreshments.',
+        image: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=600&q=80',
+        order: 6
+      },
+      {
+        name: 'DRINKS',
+        slug: 'drinks',
+        description: 'Decadent thick shakes, cold coffee, iced frappes, and chill coolers.',
+        image: 'https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?auto=format&fit=crop&w=600&q=80',
+        order: 7
       }
     ];
 
