@@ -31,7 +31,7 @@ exports.getProfile = async (req, res, next) => {
 // @access  Private
 exports.updateProfile = async (req, res, next) => {
   try {
-    const { name, phone, area, city, pincode, foodPreference } = req.body;
+    const { name, phone, area, city, pincode, foodPreference, table } = req.body;
     const user = await User.findById(req.user._id);
 
     if (name) user.name = name.trim();
@@ -40,6 +40,7 @@ exports.updateProfile = async (req, res, next) => {
     if (city !== undefined) user.city = city.trim();
     if (pincode !== undefined) user.pincode = pincode.trim();
     if (foodPreference !== undefined) user.foodPreference = foodPreference;
+    if (table) user.scannedTable = table.trim();
 
     await user.save();
 
